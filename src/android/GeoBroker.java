@@ -71,7 +71,7 @@ public class GeoBroker extends CordovaPlugin {
 
                 Location last = this.locationManager.getLastKnownLocation((enableHighAccuracy ? LocationManager.GPS_PROVIDER: LocationManager.NETWORK_PROVIDER));
                 // Check if we can use lastKnownLocation to get a quick reading and use less battery
-                if (last != null && age(last) <= maximumAge) {
+                if (new LocationAge(last).milliseconds() <= maximumAge) {
                     PluginResult result = new PluginResult(PluginResult.Status.OK, this.returnLocationJSON(last));
                     callbackContext.sendPluginResult(result);
                 } else {
@@ -98,24 +98,6 @@ public class GeoBroker extends CordovaPlugin {
         }
         return true;
     }
-    
-	private long age(Location last) {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1)
-			return age_api_17(last);
-		return age_api_pre_17(last);
-	}
-
-	@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-	private long age_api_17(Location last) {
-		return (SystemClock.elapsedRealtimeNanos() - last
-				.getElapsedRealtimeNanos()) / 1000000;
-	}
-
-	private long age_api_pre_17(Location last) {
-		long localUTCTime = System.currentTimeMillis();
-		long lastTimeUTC = last.getTime();
-		return localUTCTime - lastTimeUTC;
-	}
 
     private void clearWatch(String id) {
         this.gpsListener.clearWatch(id);
