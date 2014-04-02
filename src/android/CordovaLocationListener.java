@@ -31,6 +31,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 
 public class CordovaLocationListener implements LocationListener {
@@ -165,7 +166,7 @@ public class CordovaLocationListener implements LocationListener {
     	if(this.timer == null) {
     		this.timer = new Timer();
     	}
-    	this.timer.schedule(new LocationTimeoutTask(callbackContext, this), timeout);
+    	this.timer.schedule(new LocationTimeoutTask(new Handler(), callbackContext, this), timeout);
         this.callbacks.add(callbackContext);        
         if (this.size() == 1) {
             this.start();
@@ -226,26 +227,38 @@ public class CordovaLocationListener implements LocationListener {
     
     private class LocationTimeoutTask extends TimerTask {
     	
-    	private CallbackContext callbackContext = null;
-    	private CordovaLocationListener listener = null;
+    	private final CallbackContext callbackContext;
+    	private final CordovaLocationListener listener;
+		private final Handler caller;
     	
-    	public LocationTimeoutTask(CallbackContext callbackContext, CordovaLocationListener listener) {
-    		this.callbackContext = callbackContext;
+    	public LocationTimeoutTask(Handler caller, CallbackContext callbackContext, CordovaLocationListener listener) {
+    		this.caller = caller;
+			this.callbackContext = callbackContext;
     		this.listener = listener;
     	}
 
 		@Override
 		public void run() {
-			for (CallbackContext callbackContext: listener.callbacks) {
-				if(this.callbackContext == callbackContext) {
-					listener.callbacks.remove(callbackContext);
-					break;
+			final CallbackContext context = callbackContext;
+
+			caller.post(new Runnable() {
+
+				@Override
+				public void run() {
+					for (CallbackContext callbackContext : listener.callbacks) {
+						if (context == callbackContext) {
+							listener.callbacks.remove(callbackContext);
+							break;
+						}
+					}
+
+					if (listener.size() == 0) {
+						listener.stop();
+					}
+					listener.fail(CordovaLocationListener.TIMEOUT,
+							"Location request timed out.");
 				}
-			}
-			
-			if(listener.size() == 0) {
-				listener.stop();
-			}
-		}    	
+			});
+		}
     }
 }
